@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import sys
+import time
 from pathlib import Path
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
@@ -23,6 +24,7 @@ def parse_methods(method_string: str) -> list[str]:
 
 
 def main() -> None:
+    start_time = time.perf_counter()
     parser = argparse.ArgumentParser(description="Run GraphRAG link prediction baselines.")
     parser.add_argument("--train", default="data/splits/train_edges.csv", help="Train edges CSV.")
     parser.add_argument("--test", default="data/splits/test_edges.csv", help="Test edges CSV.")
@@ -56,22 +58,39 @@ def main() -> None:
     args = parser.parse_args()
 
     methods = parse_methods(args.methods)
+    print("Loading input files...", flush=True)
     train_edges = load_edges_csv(args.train)
     test_edges = load_edges_csv(args.test)
     negative_edges = load_edges_csv(args.negative)
+    print(
+        f"Loaded train={len(train_edges):,}, test={len(test_edges):,}, "
+        f"negative={len(negative_edges):,} edges.",
+        flush=True,
+    )
 
+    print("Building candidate set and graphs...", flush=True)
     candidates = build_candidate_set(test_edges, negative_edges)
     directed_graph = build_directed_graph(train_edges)
     undirected_graph = build_undirected_projection(directed_graph)
+    print(
+        f"Candidates={len(candidates):,}, nodes={directed_graph.number_of_nodes():,}, "
+        f"edges={directed_graph.number_of_edges():,}.",
+        flush=True,
+    )
+    print(f"Methods selected: {', '.join(methods)}", flush=True)
 
+    print("Starting scoring stage...", flush=True)
     scored_candidates = score_candidates(
         directed_graph=directed_graph,
         undirected_graph=undirected_graph,
         candidates=candidates,
         methods=methods,
+        verbose=True,
     )
 
+    print("Ranking Top-K predictions...", flush=True)
     ranked_predictions = rank_all_methods(scored_candidates, methods=methods, k=args.top_k)
+    print("Evaluating Precision@K...", flush=True)
     summary_df, per_source_df = evaluate_rankings(ranked_predictions, k=args.top_k)
 
     Path(args.scores_output).parent.mkdir(parents=True, exist_ok=True)
@@ -84,6 +103,8 @@ def main() -> None:
     summary_df.to_csv(args.metrics_output, index=False)
     per_source_df.to_csv(args.per_source_output, index=False)
 
+    elapsed = time.perf_counter() - start_time
+    print(f"Finished experiment pipeline in {elapsed:.1f} seconds.", flush=True)
     print(summary_df.to_string(index=False))
 
 
