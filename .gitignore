@@ -1,11 +1,24 @@
 .venv/
 venv/
+social-internet-network-graphrag/
 __pycache__/
 .pytest_cache/
 .mypy_cache/
 .ipynb_checkpoints/
+.vscode/
 *.pyc
 *.pyo
 *.pyd
 *.log
 
+# Raw and generated data
+data/raw/*.txt
+data/raw/*.gz
+data/processed/*.csv
+data/splits/*.csv
+results/predictions/*.csv
+results/metrics/*.csv
+!results/metrics/evaluation_summary.csv
+
+# Keep generated report figures if you want them in the repo
+!reports/figures/*.png
