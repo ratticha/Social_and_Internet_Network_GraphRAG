@@ -41,6 +41,7 @@ def random_edge_split(edges: pd.DataFrame, test_size: float = 0.2, seed: int = 4
     if selected == 0:
         test_flags[0] = True
 
-    train_edges = shuffled[[not flag for flag in test_flags]].reset_index(drop=True)
-    test_edges = shuffled[test_flags].reset_index(drop=True)
+    test_mask = pd.Series(test_flags, dtype=bool)
+    train_edges = shuffled[~test_mask].reset_index(drop=True)
+    test_edges = shuffled[test_mask].reset_index(drop=True)
     return train_edges, test_edges
