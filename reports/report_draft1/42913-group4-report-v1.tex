@@ -287,6 +287,17 @@ The degree distribution follows a heavy-tailed pattern, as shown in Figure~\ref{
   \label{fig:degrees}
 \end{figure}
 
+\subsection{Network Structure Visualisation}
+
+Figure~\ref{fig:subgraph} shows a focused subgraph of the Wikipedia Vote Network centred on the six users with the highest in-degree (the most-voted-for administrators). Each hub node is shown in dark navy, with its direct voters (predecessors) and votees (successors) shown in blue. Directed arrows indicate the direction of each vote.
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=\textwidth]{../figures/network_subgraph}
+  \caption{Hub-and-spoke subgraph of the Wikipedia Vote Network. The six dark navy nodes are the users with the highest in-degree (most trusted administrators). Blue nodes are their immediate neighbours. Arrows show the direction of votes (voter $\rightarrow$ candidate). The visualisation illustrates why Personalised PageRank outperforms local similarity methods: probability mass flows from any voter through these central hubs to reach many other administrators across multiple hops.}
+  \label{fig:subgraph}
+\end{figure}
+
 % ============================================================
 \section{Data Processing}
 \label{sec:processing}
