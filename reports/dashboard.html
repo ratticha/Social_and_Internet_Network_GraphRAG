@@ -3,17 +3,18 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>GraphRAG Link Prediction — Results Dashboard</title>
+  <title>GraphRAG Link Prediction — Project Dashboard</title>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
     :root {
       --blue:    #2563eb;
+      --blue-dk: #1e3a8a;
       --blue-lt: #dbeafe;
       --green:   #16a34a;
       --amber:   #d97706;
       --red:     #dc2626;
+      --purple:  #7c3aed;
       --slate:   #1e293b;
       --muted:   #64748b;
       --border:  #e2e8f0;
@@ -21,479 +22,402 @@
       --card:    #ffffff;
       --radius:  10px;
     }
-
     body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
            background: var(--bg); color: var(--slate); line-height: 1.6; }
 
-    /* ── header ── */
-    header {
-      background: linear-gradient(135deg, #1e3a8a 0%, #2563eb 60%, #0ea5e9 100%);
-      color: #fff; padding: 48px 32px 40px;
-    }
-    header .badge { display: inline-block; background: rgba(255,255,255,.18);
-      border: 1px solid rgba(255,255,255,.35); border-radius: 20px;
-      font-size: .75rem; letter-spacing: .06em; padding: 4px 14px; margin-bottom: 14px; }
-    header h1 { font-size: clamp(1.4rem, 3vw, 2rem); font-weight: 700; margin-bottom: 8px; }
-    header p  { opacity: .85; font-size: .95rem; max-width: 680px; }
-    .header-meta { margin-top: 20px; display: flex; flex-wrap: wrap; gap: 24px; }
-    .header-meta span { font-size: .82rem; opacity: .75; }
-    .header-meta strong { opacity: 1; font-weight: 600; }
+    /* header */
+    header { background: linear-gradient(135deg,#1e3a8a 0%,#2563eb 55%,#0ea5e9 100%);
+             color:#fff; padding:48px 32px 40px; }
+    header .badge { display:inline-block; background:rgba(255,255,255,.18);
+      border:1px solid rgba(255,255,255,.35); border-radius:20px;
+      font-size:.75rem; letter-spacing:.06em; padding:4px 14px; margin-bottom:14px; }
+    header h1 { font-size:clamp(1.4rem,3vw,2rem); font-weight:700; margin-bottom:8px; }
+    header p  { opacity:.85; font-size:.95rem; max-width:760px; }
+    .header-meta { margin-top:20px; display:flex; flex-wrap:wrap; gap:24px; }
+    .header-meta span { font-size:.82rem; opacity:.75; }
+    .header-meta strong { opacity:1; font-weight:600; }
 
-    /* ── layout ── */
-    main { max-width: 1100px; margin: 0 auto; padding: 40px 24px 80px; }
-    section { margin-bottom: 52px; }
-    h2 { font-size: 1.15rem; font-weight: 700; color: var(--slate);
-         border-left: 4px solid var(--blue); padding-left: 12px; margin-bottom: 20px; }
-    h3 { font-size: .9rem; font-weight: 600; color: var(--muted);
-         text-transform: uppercase; letter-spacing: .07em; margin-bottom: 10px; }
+    /* layout */
+    main { max-width:1140px; margin:0 auto; padding:40px 24px 80px; }
+    section { margin-bottom:52px; }
+    h2 { font-size:1.15rem; font-weight:700; color:var(--slate);
+         border-left:4px solid var(--blue); padding-left:12px; margin-bottom:20px; }
+    h3 { font-size:.9rem; font-weight:600; color:var(--muted);
+         text-transform:uppercase; letter-spacing:.07em; margin-bottom:10px; }
 
-    /* ── stat cards ── */
-    .stat-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px,1fr)); gap: 14px; }
-    .stat-card { background: var(--card); border: 1px solid var(--border);
-                 border-radius: var(--radius); padding: 20px 18px; }
-    .stat-card .val { font-size: 1.7rem; font-weight: 700; color: var(--blue); line-height: 1.1; }
-    .stat-card .lbl { font-size: .78rem; color: var(--muted); margin-top: 4px; }
+    /* stat cards */
+    .stat-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:14px; }
+    .stat-card { background:var(--card); border:1px solid var(--border);
+                 border-radius:var(--radius); padding:20px 18px; }
+    .stat-card .val { font-size:1.7rem; font-weight:700; color:var(--blue); line-height:1.1; }
+    .stat-card .lbl { font-size:.78rem; color:var(--muted); margin-top:4px; }
 
-    /* ── pipeline ── */
-    .pipeline { display: flex; flex-wrap: wrap; gap: 0; }
-    .pipe-step { flex: 1; min-width: 150px; background: var(--card);
-                 border: 1px solid var(--border); padding: 18px 16px; position: relative; }
-    .pipe-step:not(:last-child)::after {
-      content: "→"; position: absolute; right: -14px; top: 50%; transform: translateY(-50%);
-      font-size: 1.2rem; color: var(--muted); z-index: 1; background: var(--bg); padding: 0 2px; }
-    .pipe-step:first-child { border-radius: var(--radius) 0 0 var(--radius); }
-    .pipe-step:last-child  { border-radius: 0 var(--radius) var(--radius) 0; }
-    .pipe-num { width: 26px; height: 26px; border-radius: 50%; background: var(--blue);
-                color: #fff; font-size: .75rem; font-weight: 700;
-                display: flex; align-items: center; justify-content: center; margin-bottom: 10px; }
-    .pipe-step h4 { font-size: .82rem; font-weight: 700; margin-bottom: 4px; }
-    .pipe-step p  { font-size: .75rem; color: var(--muted); }
-    .pipe-step code { font-size: .7rem; background: var(--bg); padding: 2px 6px;
-                      border-radius: 4px; display: inline-block; margin-top: 6px; }
+    /* status checklist */
+    .checklist { display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:10px; }
+    .check-item { background:var(--card); border:1px solid var(--border);
+                  border-radius:8px; padding:12px 14px; font-size:.83rem;
+                  display:flex; align-items:flex-start; gap:10px; }
+    .check-item .ico { font-size:1.1rem; flex-shrink:0; margin-top:1px; }
+    .check-item strong { display:block; margin-bottom:2px; }
+    .check-item span { color:var(--muted); font-size:.77rem; }
 
-    /* ── algo cards ── */
-    .algo-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 14px; }
-    .algo-card { background: var(--card); border: 1px solid var(--border);
-                 border-radius: var(--radius); padding: 22px 20px; }
-    .algo-card .algo-tag { display: inline-block; font-size: .68rem; font-weight: 700;
-      letter-spacing: .06em; padding: 3px 10px; border-radius: 12px; margin-bottom: 10px; }
-    .tag-local  { background: #ede9fe; color: #5b21b6; }
-    .tag-global { background: #dcfce7; color: #14532d; }
-    .algo-card h4 { font-size: .9rem; font-weight: 700; margin-bottom: 6px; }
-    .algo-card .formula { font-family: "Courier New", monospace; font-size: .78rem;
-      background: var(--bg); border-radius: 6px; padding: 8px 12px;
-      margin: 10px 0; color: var(--slate); }
-    .algo-card p { font-size: .8rem; color: var(--muted); }
-    .algo-card .score-badge { margin-top: 12px; font-size: .8rem; font-weight: 700; }
+    /* pipeline steps */
+    .pipeline { display:flex; flex-wrap:wrap; gap:0; }
+    .pipe-step { flex:1; min-width:130px; background:var(--card);
+                 border:1px solid var(--border); padding:16px 14px; position:relative; }
+    .pipe-step:not(:last-child)::after { content:"→"; position:absolute; right:-14px;
+      top:50%; transform:translateY(-50%); font-size:1.1rem; color:var(--muted);
+      z-index:1; background:var(--bg); padding:0 2px; }
+    .pipe-step:first-child { border-radius:var(--radius) 0 0 var(--radius); }
+    .pipe-step:last-child  { border-radius:0 var(--radius) var(--radius) 0; }
+    .pipe-num { width:24px; height:24px; border-radius:50%; background:var(--blue);
+                color:#fff; font-size:.72rem; font-weight:700;
+                display:flex; align-items:center; justify-content:center; margin-bottom:8px; }
+    .pipe-step h4 { font-size:.8rem; font-weight:700; margin-bottom:3px; }
+    .pipe-step p  { font-size:.72rem; color:var(--muted); }
+    .pipe-step code { font-size:.68rem; background:var(--bg); padding:2px 5px;
+                      border-radius:4px; display:inline-block; margin-top:5px; }
 
-    /* ── results table ── */
-    .results-wrap { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; align-items: start; }
-    @media (max-width: 700px) { .results-wrap { grid-template-columns: 1fr; } }
-    table { width: 100%; border-collapse: collapse; background: var(--card);
-            border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
-    thead tr { background: var(--slate); color: #fff; }
-    th { padding: 11px 14px; font-size: .78rem; font-weight: 600;
-         text-align: left; letter-spacing: .04em; }
-    td { padding: 10px 14px; font-size: .82rem; border-bottom: 1px solid var(--border); }
-    tr:last-child td { border-bottom: none; }
-    tr.best-row td { background: #eff6ff; font-weight: 600; }
-    tr.random-row td { background: #fafafa; color: var(--muted); font-style: italic; }
-    .bar-cell { display: flex; align-items: center; gap: 8px; }
-    .bar-fill { height: 8px; border-radius: 4px; background: var(--blue); }
-    .bar-fill.random { background: #cbd5e1; }
+    /* algo cards */
+    .algo-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:12px; }
+    .algo-card { background:var(--card); border:1px solid var(--border);
+                 border-radius:var(--radius); padding:18px 16px; }
+    .algo-card .algo-tag { display:inline-block; font-size:.66rem; font-weight:700;
+      letter-spacing:.06em; padding:2px 9px; border-radius:12px; margin-bottom:9px; }
+    .tag-local  { background:#ede9fe; color:#5b21b6; }
+    .tag-global { background:#dcfce7; color:#14532d; }
+    .tag-path   { background:#fef9c3; color:#713f12; }
+    .algo-card h4 { font-size:.88rem; font-weight:700; margin-bottom:5px; }
+    .algo-card .formula { font-family:"Courier New",monospace; font-size:.74rem;
+      background:var(--bg); border-radius:5px; padding:6px 10px; margin:8px 0; }
+    .algo-card p { font-size:.78rem; color:var(--muted); }
+    .algo-card .score { margin-top:10px; font-size:.8rem; font-weight:700; }
 
-    /* ── chart container ── */
-    .chart-box { background: var(--card); border: 1px solid var(--border);
-                 border-radius: var(--radius); padding: 24px 20px; }
-    .chart-box canvas { max-height: 280px; }
+    /* results */
+    .results-wrap { display:grid; grid-template-columns:1fr 1fr; gap:22px; align-items:start; }
+    @media(max-width:700px){.results-wrap{grid-template-columns:1fr;}}
+    table { width:100%; border-collapse:collapse; background:var(--card);
+            border:1px solid var(--border); border-radius:var(--radius); overflow:hidden; }
+    thead tr { background:var(--blue-dk); color:#fff; }
+    th { padding:10px 12px; font-size:.76rem; font-weight:600;
+         text-align:left; letter-spacing:.04em; }
+    td { padding:9px 12px; font-size:.8rem; border-bottom:1px solid var(--border); }
+    tr:last-child td { border-bottom:none; }
+    tr.best { background:#eff6ff; font-weight:600; }
+    tr.random { background:#fafafa; color:var(--muted); font-style:italic; }
+    .chart-box { background:var(--card); border:1px solid var(--border);
+                 border-radius:var(--radius); padding:22px 18px; }
 
-    /* ── figure gallery ── */
-    .fig-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px,1fr)); gap: 18px; }
-    .fig-card { background: var(--card); border: 1px solid var(--border);
-                border-radius: var(--radius); overflow: hidden; }
-    .fig-card img { width: 100%; display: block; }
-    .fig-cap { padding: 12px 14px; font-size: .78rem; color: var(--muted); }
-    .fig-cap strong { color: var(--slate); display: block; margin-bottom: 3px; }
+    /* figures */
+    .fig-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(260px,1fr)); gap:16px; }
+    .fig-card { background:var(--card); border:1px solid var(--border);
+                border-radius:var(--radius); overflow:hidden; }
+    .fig-card img { width:100%; display:block; }
+    .fig-cap { padding:10px 13px; font-size:.76rem; color:var(--muted); }
+    .fig-cap strong { color:var(--slate); display:block; margin-bottom:2px; }
 
-    /* ── insight boxes ── */
-    .insight-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px,1fr)); gap: 14px; }
-    .insight { background: var(--card); border: 1px solid var(--border);
-               border-radius: var(--radius); padding: 18px 16px; }
-    .insight .icon { font-size: 1.4rem; margin-bottom: 8px; }
-    .insight h4 { font-size: .85rem; font-weight: 700; margin-bottom: 6px; }
-    .insight p  { font-size: .78rem; color: var(--muted); }
+    /* insight boxes */
+    .insight-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:12px; }
+    .insight { background:var(--card); border:1px solid var(--border);
+               border-radius:var(--radius); padding:16px 14px; }
+    .insight .icon { font-size:1.3rem; margin-bottom:7px; }
+    .insight h4 { font-size:.84rem; font-weight:700; margin-bottom:5px; }
+    .insight p  { font-size:.77rem; color:var(--muted); }
 
-    /* ── footer ── */
-    footer { text-align: center; padding: 24px; font-size: .75rem; color: var(--muted); }
+    /* dataset adapter table */
+    .adapter-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(260px,1fr)); gap:14px; }
+    .adapter-card { background:var(--card); border:1px solid var(--border);
+                    border-radius:var(--radius); padding:18px 16px; }
+    .adapter-card h4 { font-size:.9rem; font-weight:700; margin-bottom:6px; color:var(--blue-dk); }
+    .adapter-card .tag2 { display:inline-block; background:var(--blue-lt); color:var(--blue-dk);
+                          font-size:.68rem; font-weight:700; padding:2px 8px;
+                          border-radius:10px; margin-bottom:8px; }
+    .adapter-card p { font-size:.78rem; color:var(--muted); }
+    .adapter-card code { font-size:.72rem; background:var(--bg); padding:2px 6px;
+                         border-radius:4px; display:inline-block; margin-top:6px; }
 
-    /* ── highlight number ── */
-    .hl { color: var(--blue); font-weight: 700; }
-    .hl-green { color: var(--green); font-weight: 700; }
+    /* deliverables */
+    .deliv-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(250px,1fr)); gap:12px; }
+    .deliv { background:var(--card); border:1px solid var(--border);
+             border-radius:var(--radius); padding:14px 16px;
+             display:flex; align-items:flex-start; gap:10px; }
+    .deliv .ico { font-size:1.1rem; flex-shrink:0; }
+    .deliv h4 { font-size:.84rem; font-weight:700; margin-bottom:3px; }
+    .deliv p  { font-size:.75rem; color:var(--muted); }
+
+    footer { text-align:center; padding:24px; font-size:.75rem; color:var(--muted); }
   </style>
 </head>
 <body>
 
-<!-- ═══════════════════════════════════════ HEADER -->
+<!-- HEADER -->
 <header>
-  <div class="badge">42913 Social and Information Network Analysis</div>
-  <h1>GraphRAG &amp; Context Retrieval — Link Prediction on Wikipedia Vote Network</h1>
-  <p>A simplified GraphRAG retrieval module: four link prediction algorithms compared on a directed social trust graph using Precision@K as the evaluation metric.</p>
+  <div class="badge">42913 Social and Information Network Analysis · Group 4</div>
+  <h1>GraphRAG &amp; Context Retrieval — Project Dashboard</h1>
+  <p>A flexible GraphRAG retrieval engine built on link prediction. Four scoring
+     algorithms evaluated on the Wikipedia Vote Network plus a universal pipeline
+     that supports any graph dataset.</p>
   <div class="header-meta">
-    <span><strong>Dataset</strong> &nbsp;Wikipedia Vote (SNAP)</span>
-    <span><strong>Metric</strong> &nbsp;Mean Precision@10</span>
-    <span><strong>Best Method</strong> &nbsp;Personalized PageRank — 0.3369</span>
-    <span><strong>Baseline</strong> &nbsp;Random — 0.091</span>
+    <span><strong>Dataset</strong> &nbsp;Wikipedia Vote Network (SNAP)</span>
+    <span><strong>Best result</strong> &nbsp;Personalised PageRank — P@10 = 0.3369</span>
+    <span><strong>vs Random</strong> &nbsp;3.7× better</span>
+    <span><strong>Report</strong> &nbsp;21 pages · LaTeX</span>
+    <span><strong>Status</strong> &nbsp;✅ Complete</span>
   </div>
 </header>
 
 <main>
 
-  <!-- ═══════════════════════════════════════ OVERVIEW -->
-  <section>
-    <h2>Why This Project?</h2>
-    <div class="insight-grid">
-      <div class="insight">
-        <div class="icon">🤖</div>
-        <h4>LLMs Hallucinate</h4>
-        <p>When a language model lacks specific context, it generates confident but wrong answers. RAG fixes this by retrieving relevant documents first.</p>
-      </div>
-      <div class="insight">
-        <div class="icon">🔍</div>
-        <h4>Keyword RAG Fails Indirectly</h4>
-        <p>"How is Professor A influenced by Scientist B?" — keyword search fails if they never co-authored. The relationship exists only as a multi-hop graph path.</p>
-      </div>
-      <div class="insight">
-        <div class="icon">🕸️</div>
-        <h4>GraphRAG Finds Hidden Paths</h4>
-        <p>By structuring knowledge as a graph, we trace A → C → B through intermediate nodes — surfacing context that flat retrieval misses entirely.</p>
-      </div>
-      <div class="insight">
-        <div class="icon">🎯</div>
-        <h4>Our Approach</h4>
-        <p>If algorithm predicts a strong link from user A to user B, then B is treated as relevant context for A. Link prediction = context retrieval.</p>
-      </div>
+<!-- PROJECT STATUS -->
+<section>
+  <h2>Project Status</h2>
+  <div class="checklist">
+    <div class="check-item"><div class="ico">✅</div><div><strong>Dataset downloaded &amp; cleaned</strong><span>103,689 directed edges · 7,115 nodes</span></div></div>
+    <div class="check-item"><div class="ico">✅</div><div><strong>80/20 train/test split</strong><span>82,951 train · 20,738 test · 207,380 negatives</span></div></div>
+    <div class="check-item"><div class="ico">✅</div><div><strong>5 algorithms implemented</strong><span>CN · Jaccard · AA · PPR · Katz</span></div></div>
+    <div class="check-item"><div class="ico">✅</div><div><strong>Experiments run &amp; evaluated</strong><span>Precision@10 across 2,807 source nodes</span></div></div>
+    <div class="check-item"><div class="ico">✅</div><div><strong>Network visualisation</strong><span>Hub-and-spoke subgraph · hub-node explorer</span></div></div>
+    <div class="check-item"><div class="ico">✅</div><div><strong>LaTeX report</strong><span>42913-group4-report-v1.tex · 21 pages · 0 errors</span></div></div>
+    <div class="check-item"><div class="ico">✅</div><div><strong>Interactive Streamlit app</strong><span>streamlit run app.py → localhost:8501</span></div></div>
+    <div class="check-item"><div class="ico">✅</div><div><strong>Flexible pipeline</strong><span>GraphRAGPipeline works on any graph dataset</span></div></div>
+    <div class="check-item"><div class="ico">✅</div><div><strong>GitHub</strong><span>branch ratticha2 · fully pushed</span></div></div>
+  </div>
+</section>
+
+<!-- DATASET -->
+<section>
+  <h2>Dataset — Wikipedia Vote Network</h2>
+  <p style="font-size:.85rem;color:var(--muted);margin-bottom:16px;">
+    Directed edge <strong>i → j</strong> = user i voted to promote user j as Wikipedia administrator.
+    A trust signal that proxies for relevance in the GraphRAG context.
+    Source: Stanford SNAP.</p>
+  <div class="stat-grid">
+    <div class="stat-card"><div class="val">7,115</div><div class="lbl">Nodes (users)</div></div>
+    <div class="stat-card"><div class="val">103,689</div><div class="lbl">Directed edges (votes)</div></div>
+    <div class="stat-card"><div class="val">82,951</div><div class="lbl">Training edges (80%)</div></div>
+    <div class="stat-card"><div class="val">20,738</div><div class="lbl">Test edges (20%)</div></div>
+    <div class="stat-card"><div class="val">207,380</div><div class="lbl">Negative samples</div></div>
+    <div class="stat-card"><div class="val">2,807</div><div class="lbl">Source nodes evaluated</div></div>
+  </div>
+</section>
+
+<!-- PIPELINE -->
+<section>
+  <h2>Pipeline — 6 Stages</h2>
+  <div class="pipeline">
+    <div class="pipe-step"><div class="pipe-num">1</div><h4>Download</h4><p>Fetch from SNAP</p><code>download_data.py</code></div>
+    <div class="pipe-step"><div class="pipe-num">2</div><h4>Preprocess</h4><p>Remove self-loops &amp; duplicates</p><code>preprocess_data.py</code></div>
+    <div class="pipe-step"><div class="pipe-num">3</div><h4>Split</h4><p>80/20 + 10× negative sampling</p><code>create_split.py</code></div>
+    <div class="pipe-step"><div class="pipe-num">4</div><h4>Score &amp; Rank</h4><p>5 algorithms · 228K candidates</p><code>run_experiments.py</code></div>
+    <div class="pipe-step"><div class="pipe-num">5</div><h4>Evaluate</h4><p>Precision@10 · 2,807 nodes</p><code>evaluate.py</code></div>
+    <div class="pipe-step"><div class="pipe-num">6</div><h4>Visualise</h4><p>Network subgraph diagram</p><code>visualise_network.py</code></div>
+  </div>
+</section>
+
+<!-- ALGORITHMS -->
+<section>
+  <h2>Algorithms</h2>
+  <div class="algo-grid">
+    <div class="algo-card">
+      <span class="algo-tag tag-local">Local · 1-hop</span>
+      <h4>Common Neighbours</h4>
+      <div class="formula">CN(u,v) = |N(u) ∩ N(v)|</div>
+      <p>Count shared neighbours in undirected training graph.</p>
+      <div class="score" style="color:var(--blue)">P@10 = 0.3029</div>
     </div>
-  </section>
-
-  <!-- ═══════════════════════════════════════ DATASET -->
-  <section>
-    <h2>Dataset — Wikipedia Vote Network</h2>
-    <p style="font-size:.85rem; color:var(--muted); margin-bottom:18px;">
-      Each directed edge <strong>i → j</strong> means Wikipedia user <em>i</em> voted to promote user <em>j</em> to administrator — a signal of trust and relevance.
-      Downloaded from the Stanford Network Analysis Project (SNAP).
-    </p>
-    <div class="stat-grid">
-      <div class="stat-card"><div class="val">7,115</div><div class="lbl">Unique users (nodes)</div></div>
-      <div class="stat-card"><div class="val">103,689</div><div class="lbl">Directed vote edges</div></div>
-      <div class="stat-card"><div class="val">0.00205</div><div class="lbl">Graph density</div></div>
-      <div class="stat-card"><div class="val">14.57</div><div class="lbl">Avg degree</div></div>
-      <div class="stat-card"><div class="val">Heavy-tailed</div><div class="lbl">Degree distribution</div></div>
+    <div class="algo-card">
+      <span class="algo-tag tag-local">Local · 1-hop</span>
+      <h4>Jaccard Coefficient</h4>
+      <div class="formula">|N(u)∩N(v)| / |N(u)∪N(v)|</div>
+      <p>Normalised by union size — penalises high-degree hubs.</p>
+      <div class="score" style="color:var(--red)">P@10 = 0.2941 (lowest)</div>
     </div>
-  </section>
-
-  <!-- ═══════════════════════════════════════ PIPELINE -->
-  <section>
-    <h2>Pipeline — 5 Stages</h2>
-    <div class="pipeline">
-      <div class="pipe-step">
-        <div class="pipe-num">1</div>
-        <h4>Download</h4>
-        <p>Fetch compressed dataset from SNAP</p>
-        <code>download_data.py</code>
-      </div>
-      <div class="pipe-step">
-        <div class="pipe-num">2</div>
-        <h4>Preprocess</h4>
-        <p>Remove self-loops &amp; duplicates → CSV</p>
-        <code>preprocess_data.py</code>
-      </div>
-      <div class="pipe-step">
-        <div class="pipe-num">3</div>
-        <h4>Split</h4>
-        <p>80/20 train/test + 10× negative sampling</p>
-        <code>create_split.py</code>
-      </div>
-      <div class="pipe-step">
-        <div class="pipe-num">4</div>
-        <h4>Score &amp; Rank</h4>
-        <p>4 algorithms score 228K candidates, Top-10 per node</p>
-        <code>run_experiments.py</code>
-      </div>
-      <div class="pipe-step">
-        <div class="pipe-num">5</div>
-        <h4>Evaluate</h4>
-        <p>Precision@10 per method across 2,807 nodes</p>
-        <code>evaluate.py</code>
-      </div>
+    <div class="algo-card">
+      <span class="algo-tag tag-local">Local · 1-hop</span>
+      <h4>Adamic / Adar</h4>
+      <div class="formula">Σ 1/log(deg(w)) for w∈N(u)∩N(v)</div>
+      <p>Niche shared neighbours weighted more than hubs.</p>
+      <div class="score" style="color:var(--blue)">P@10 = 0.3027</div>
     </div>
-    <div class="stat-grid" style="margin-top:16px;">
-      <div class="stat-card"><div class="val">82,951</div><div class="lbl">Training edges (80%)</div></div>
-      <div class="stat-card"><div class="val">20,738</div><div class="lbl">Test edges — hidden truth (20%)</div></div>
-      <div class="stat-card"><div class="val">207,380</div><div class="lbl">Negative (non-edge) samples</div></div>
-      <div class="stat-card"><div class="val">2,807</div><div class="lbl">Source nodes evaluated</div></div>
-      <div class="stat-card"><div class="val">228,118</div><div class="lbl">Total candidate pairs scored</div></div>
+    <div class="algo-card">
+      <span class="algo-tag tag-global">Global · Multi-hop</span>
+      <h4>Personalised PageRank</h4>
+      <div class="formula">r = α·Aᵀ·r + (1-α)·eᵤ<br><small>α = 0.85 · directed graph</small></div>
+      <p>Random walk from u — reaches nodes 2–3 hops away.</p>
+      <div class="score" style="color:var(--green)">P@10 = 0.3369 ✓ best</div>
     </div>
-  </section>
-
-  <!-- ═══════════════════════════════════════ ALGORITHMS -->
-  <section>
-    <h2>Algorithms</h2>
-    <div class="algo-grid">
-      <div class="algo-card">
-        <span class="algo-tag tag-local">Local Similarity</span>
-        <h4>Common Neighbors</h4>
-        <div class="formula">CN(u,v) = |N(u) ∩ N(v)|</div>
-        <p>Count how many users both u and v are connected to. More shared connections → more likely to be related.</p>
-        <div class="score-badge" style="color:var(--blue)">P@10 = 0.3029</div>
-      </div>
-      <div class="algo-card">
-        <span class="algo-tag tag-local">Local Similarity</span>
-        <h4>Jaccard Coefficient</h4>
-        <div class="formula">J(u,v) = |N(u)∩N(v)| / |N(u)∪N(v)|</div>
-        <p>Normalises common neighbours by total neighbourhood size. Penalises high-degree hub nodes.</p>
-        <div class="score-badge" style="color:var(--red)">P@10 = 0.2941 (lowest)</div>
-      </div>
-      <div class="algo-card">
-        <span class="algo-tag tag-local">Local Similarity</span>
-        <h4>Adamic / Adar</h4>
-        <div class="formula">AA(u,v) = Σ 1/log(deg(w))<br><small>w ∈ N(u) ∩ N(v)</small></div>
-        <p>Like Common Neighbors but niche shared neighbours (low degree) count more than popular hubs.</p>
-        <div class="score-badge" style="color:var(--blue)">P@10 = 0.3027</div>
-      </div>
-      <div class="algo-card">
-        <span class="algo-tag tag-global">Global / Multi-hop</span>
-        <h4>Personalized PageRank</h4>
-        <div class="formula">r = α·Aᵀ·r + (1-α)·eᵤ<br><small>α = 0.85, restart at u</small></div>
-        <p>Random walker starts at u, follows directed edges, teleports back to u. Reaches nodes 2–3 hops away that local methods miss.</p>
-        <div class="score-badge" style="color:var(--green)">P@10 = 0.3369 (best ✓)</div>
-      </div>
+    <div class="algo-card">
+      <span class="algo-tag tag-path">Path · Multi-hop</span>
+      <h4>Katz Index</h4>
+      <div class="formula">Σ βᵏ · (Aᵏ)ᵤᵥ · k=1..3<br><small>β = 0.05</small></div>
+      <p>Sums all walks up to length 3, decayed by β per step.</p>
+      <div class="score" style="color:var(--amber)">Used in context retrieval</div>
     </div>
-  </section>
+  </div>
+</section>
 
-  <!-- ═══════════════════════════════════════ RESULTS -->
-  <section>
-    <h2>Results — Precision@10</h2>
-    <div class="results-wrap">
-
-      <!-- table -->
-      <div>
-        <h3>Method Comparison</h3>
-        <table>
-          <thead>
-            <tr>
-              <th>Method</th>
-              <th>Mean P@10</th>
-              <th>Std Dev</th>
-              <th>Total Hits</th>
-              <th>vs Random</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr class="best-row">
-              <td>Personalized PageRank</td>
-              <td>0.3369</td>
-              <td>0.2389</td>
-              <td>9,456</td>
-              <td>3.7×</td>
-            </tr>
-            <tr>
-              <td>Common Neighbors</td>
-              <td>
-                <div class="bar-cell">
-                  0.3029
-                  <div class="bar-fill" style="width:56px"></div>
-                </div>
-              </td>
-              <td>0.2328</td>
-              <td>8,502</td>
-              <td>3.3×</td>
-            </tr>
-            <tr>
-              <td>Adamic / Adar</td>
-              <td>
-                <div class="bar-cell">
-                  0.3027
-                  <div class="bar-fill" style="width:55px"></div>
-                </div>
-              </td>
-              <td>0.2320</td>
-              <td>8,496</td>
-              <td>3.3×</td>
-            </tr>
-            <tr>
-              <td>Jaccard</td>
-              <td>
-                <div class="bar-cell">
-                  0.2941
-                  <div class="bar-fill" style="width:52px"></div>
-                </div>
-              </td>
-              <td>0.2320</td>
-              <td>8,254</td>
-              <td>3.2×</td>
-            </tr>
-            <tr class="random-row">
-              <td>Random (baseline)</td>
-              <td>
-                <div class="bar-cell">
-                  ~0.091
-                  <div class="bar-fill random" style="width:16px"></div>
-                </div>
-              </td>
-              <td>—</td>
-              <td>—</td>
-              <td>1.0×</td>
-            </tr>
-          </tbody>
-        </table>
-        <p style="font-size:.75rem; color:var(--muted); margin-top:8px;">
-          Evaluated over <strong>2,807</strong> source nodes · Top-K = 10
-        </p>
-      </div>
-
-      <!-- chart -->
-      <div class="chart-box">
-        <h3>Mean Precision@10 by Method</h3>
-        <canvas id="resultsChart"></canvas>
-      </div>
-
+<!-- RESULTS -->
+<section>
+  <h2>Results — Precision@10</h2>
+  <div class="results-wrap">
+    <div>
+      <h3>Method Comparison</h3>
+      <table>
+        <thead><tr><th>Method</th><th>Mean P@10</th><th>Std Dev</th><th>Total Hits</th><th>vs Random</th></tr></thead>
+        <tbody>
+          <tr class="best"><td>Personalised PageRank</td><td>0.3369</td><td>0.2389</td><td>9,456</td><td>3.7×</td></tr>
+          <tr><td>Common Neighbours</td><td>0.3029</td><td>0.2328</td><td>8,502</td><td>3.3×</td></tr>
+          <tr><td>Adamic / Adar</td><td>0.3027</td><td>0.2320</td><td>8,496</td><td>3.3×</td></tr>
+          <tr><td>Jaccard</td><td>0.2941</td><td>0.2320</td><td>8,254</td><td>3.2×</td></tr>
+          <tr class="random"><td>Random baseline</td><td>~0.091</td><td>—</td><td>—</td><td>1.0×</td></tr>
+        </tbody>
+      </table>
+      <p style="font-size:.73rem;color:var(--muted);margin-top:8px;">K = 10 · 2,807 evaluated nodes · 228,118 candidate pairs</p>
     </div>
-  </section>
-
-  <!-- ═══════════════════════════════════════ FIGURES -->
-  <section>
-    <h2>Analysis Figures</h2>
-    <div class="fig-grid">
-      <div class="fig-card">
-        <img src="figures/degree_distributions.png" alt="Degree distributions" onerror="this.parentElement.style.display='none'" />
-        <div class="fig-cap">
-          <strong>Degree Distributions</strong>
-          Heavy-tailed: a few users receive thousands of votes; most receive very few. Hub nodes are the key connectors.
-        </div>
-      </div>
-      <div class="fig-card">
-        <img src="figures/precision_at_k_comparison.png" alt="Precision@K comparison" onerror="this.parentElement.style.display='none'" />
-        <div class="fig-cap">
-          <strong>Precision@K Comparison</strong>
-          PageRank clearly leads. Error bars show variance across source nodes.
-        </div>
-      </div>
-      <div class="fig-card">
-        <img src="figures/per_source_precision_boxplot.png" alt="Per-source boxplot" onerror="this.parentElement.style.display='none'" />
-        <div class="fig-cap">
-          <strong>Per-Source Precision Distribution</strong>
-          Wide boxes confirm high variance — well-connected nodes benefit most from graph retrieval.
-        </div>
-      </div>
-      <div class="fig-card">
-        <img src="figures/positive_rate_by_rank.png" alt="Positive rate by rank" onerror="this.parentElement.style.display='none'" />
-        <div class="fig-cap">
-          <strong>Positive Edge Rate by Rank Position</strong>
-          True edges appear more often at rank 1 than rank 10 — all methods push real connections to the top.
-        </div>
-      </div>
+    <div class="chart-box">
+      <h3>Mean Precision@10 by Method</h3>
+      <canvas id="resultsChart"></canvas>
     </div>
-  </section>
+  </div>
+</section>
 
-  <!-- ═══════════════════════════════════════ KEY INSIGHTS -->
-  <section>
-    <h2>Key Takeaways</h2>
-    <div class="insight-grid">
-      <div class="insight">
-        <div class="icon">🏆</div>
-        <h4>PageRank Wins (+11%)</h4>
-        <p>Multi-hop directed paths find indirect connections that local methods miss. The Wikipedia hub-and-spoke structure amplifies this advantage.</p>
-      </div>
-      <div class="insight">
-        <div class="icon">📉</div>
-        <h4>Jaccard Penalises Hubs — Wrong Choice</h4>
-        <p>Normalising by union size discounts high-degree admins. But in this network, those hubs ARE the meaningful connectors. Jaccard scores lowest.</p>
-      </div>
-      <div class="insight">
-        <div class="icon">🔗</div>
-        <h4>CN ≈ Adamic/Adar</h4>
-        <p>The log-weighting in Adamic/Adar barely changes rankings because most shared neighbours are already medium-degree in this heavy-tailed graph.</p>
-      </div>
-      <div class="insight">
-        <div class="icon">📊</div>
-        <h4>3.7× Better Than Random</h4>
-        <p>All graph methods beat the 9.1% random baseline by 3–4×, confirming that graph structure carries real information for context relevance.</p>
-      </div>
-      <div class="insight">
-        <div class="icon">🌐</div>
-        <h4>GraphRAG Justified</h4>
-        <p>PPR's 33.7% precision means a GraphRAG engine provides 3–4 genuinely relevant context nodes per 10-node window — vs. ~1 for a random retriever.</p>
-      </div>
-      <div class="insight">
-        <div class="icon">🔮</div>
-        <h4>Next Steps</h4>
-        <p>Ensemble all 4 scores, add Recall@K / AUC-ROC, try a temporal split, or upgrade to a GNN-based predictor (GraphSAGE, GAT).</p>
-      </div>
+<!-- FIGURES -->
+<section>
+  <h2>Analysis Figures</h2>
+  <div class="fig-grid">
+    <div class="fig-card">
+      <img src="figures/network_subgraph.png" alt="Network subgraph" onerror="this.parentElement.style.display='none'" />
+      <div class="fig-cap"><strong>Hub-and-Spoke Network Subgraph</strong>Top-6 hub nodes (dark) and their direct neighbours. Illustrates why PPR outperforms local methods — it follows edges through hubs to reach nodes 2–3 hops away.</div>
     </div>
-  </section>
+    <div class="fig-card">
+      <img src="figures/degree_distributions.png" alt="Degree distributions" onerror="this.parentElement.style.display='none'" />
+      <div class="fig-cap"><strong>Degree Distributions</strong>Heavy-tailed: a few admins receive thousands of votes; most users receive very few. Hub-and-spoke structure drives algorithm performance differences.</div>
+    </div>
+    <div class="fig-card">
+      <img src="figures/precision_at_k_comparison.png" alt="Precision@K" onerror="this.parentElement.style.display='none'" />
+      <div class="fig-cap"><strong>Precision@10 Comparison</strong>PPR leads clearly. Error bars show variance across source nodes. All methods are 3–4× above the random baseline dotted line.</div>
+    </div>
+    <div class="fig-card">
+      <img src="figures/per_source_precision_boxplot.png" alt="Boxplot" onerror="this.parentElement.style.display='none'" />
+      <div class="fig-cap"><strong>Per-Node Precision Distribution</strong>Wide interquartile range confirms retrieval quality is uneven — well-connected nodes benefit most from graph-based methods.</div>
+    </div>
+    <div class="fig-card">
+      <img src="figures/positive_rate_by_rank.png" alt="Rank quality" onerror="this.parentElement.style.display='none'" />
+      <div class="fig-cap"><strong>Positive Edge Rate by Rank</strong>True edges appear more often at rank 1 than rank 10 — all methods push real connections to the top of the ranked list.</div>
+    </div>
+  </div>
+</section>
+
+<!-- FLEXIBLE PIPELINE -->
+<section>
+  <h2>Flexible Pipeline — Works on Any Dataset</h2>
+  <p style="font-size:.85rem;color:var(--muted);margin-bottom:18px;">
+    The same <code>GraphRAGPipeline</code> runs on any graph dataset.
+    Auto-selects the right evaluation metric from the dataset's task tag.</p>
+  <div class="adapter-grid">
+    <div class="adapter-card">
+      <div class="tag2">task = link_prediction → Precision@K</div>
+      <h4>WikiVoteDataset</h4>
+      <p>SNAP wiki-Vote.txt or pre-cleaned CSV. 80/20 edge split + negative sampling built-in.</p>
+      <code>WikiVoteDataset("graph_edges.csv")</code>
+    </div>
+    <div class="adapter-card">
+      <div class="tag2">task = link_prediction → Precision@K</div>
+      <h4>EdgeListDataset</h4>
+      <p>Any CSV/TSV social network. Accepts custom column names, directed or undirected.</p>
+      <code>EdgeListDataset("network.csv", directed=True)</code>
+    </div>
+    <div class="adapter-card">
+      <div class="tag2">task = context_retrieval → AUC-ROC</div>
+      <h4>ContextGraphDataset</h4>
+      <p>Per-example entity graphs (HotpotQA, knowledge graphs). Each record has a graph, seed entities, and positive entities.</p>
+      <code>ContextGraphDataset(records, "HotpotQA")</code>
+    </div>
+    <div class="adapter-card">
+      <div class="tag2">task = custom</div>
+      <h4>Custom Subclass</h4>
+      <p>Subclass GraphDataset, implement <code>get_graph()</code> and <code>get_candidates()</code> — pipeline handles the rest.</p>
+      <code>class MyDataset(GraphDataset): ...</code>
+    </div>
+  </div>
+  <div style="margin-top:16px;background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:16px 18px;">
+    <pre style="font-size:.78rem;color:var(--slate);line-height:1.7;overflow-x:auto;">
+<span style="color:var(--muted)"># Works identically for both datasets:</span>
+pipeline = GraphRAGPipeline(dataset, methods=["ppr","cn","jaccard","aa","katz"])
+results  = pipeline.run()   <span style="color:var(--muted)"># auto-selects Precision@K or AUC-ROC</span></pre>
+  </div>
+</section>
+
+<!-- KEY INSIGHTS -->
+<section>
+  <h2>Key Takeaways</h2>
+  <div class="insight-grid">
+    <div class="insight"><div class="icon">🏆</div><h4>PPR wins (+11% over CN)</h4><p>Multi-hop directed path traversal finds indirect connections that 1-hop methods cannot. The hub-and-spoke structure amplifies this advantage.</p></div>
+    <div class="insight"><div class="icon">📉</div><h4>Jaccard penalises the wrong nodes</h4><p>Normalising by union size discounts high-degree admins. In this trust network, those hubs ARE the meaningful connectors.</p></div>
+    <div class="insight"><div class="icon">🔗</div><h4>CN ≈ Adamic/Adar</h4><p>Heavy-tailed degree distribution means most shared neighbours are medium-degree — the log-weighting adds minimal signal.</p></div>
+    <div class="insight"><div class="icon">📊</div><h4>3.7× better than random</h4><p>All graph methods beat the 9.1% random baseline by 3–4×, confirming graph structure carries genuine relevance information.</p></div>
+    <div class="insight"><div class="icon">🌐</div><h4>GraphRAG justified</h4><p>PPR delivers 3.4 relevant context nodes per 10-node window vs ~1 for random. Directly validates the core GraphRAG motivation.</p></div>
+    <div class="insight"><div class="icon">🔌</div><h4>Universal pipeline</h4><p>WikiVote, HotpotQA, or any edge list — same GraphRAGPipeline interface. Add your own dataset in &lt;15 lines.</p></div>
+  </div>
+</section>
+
+<!-- DELIVERABLES -->
+<section>
+  <h2>Project Deliverables</h2>
+  <div class="deliv-grid">
+    <div class="deliv"><div class="ico">📄</div><div><h4>LaTeX Report</h4><p>reports/report_draft1/42913-group4-report-v1.tex<br>21 pages · 8 sections · zero compile errors</p></div></div>
+    <div class="deliv"><div class="ico">📊</div><div><h4>Results Dashboard</h4><p>reports/dashboard.html<br>Open in any browser — no server needed</p></div></div>
+    <div class="deliv"><div class="ico">🖥️</div><div><h4>Streamlit App</h4><p>app.py · 4 interactive pages<br><code>streamlit run app.py</code> → localhost:8501</p></div></div>
+    <div class="deliv"><div class="ico">📓</div><div><h4>Notebooks</h4><p>01 Data exploration · 02 Results analysis<br>03 Universal pipeline demo</p></div></div>
+    <div class="deliv"><div class="ico">🧩</div><div><h4>GraphRAG Package</h4><p>src/graphrag/ — 11 modules<br>Reusable on any social / knowledge graph</p></div></div>
+    <div class="deliv"><div class="ico">🕸️</div><div><h4>Network Diagram</h4><p>reports/figures/network_subgraph.png<br>Hub-and-spoke subgraph · interactive in app</p></div></div>
+  </div>
+</section>
 
 </main>
 
 <footer>
-  42913 Social and Information Network Analysis &nbsp;·&nbsp;
-  Topic 2: GraphRAG and Context Retrieval &nbsp;·&nbsp;
-  Wikipedia Vote Network (SNAP) &nbsp;·&nbsp;
-  Best method: <strong>Personalized PageRank</strong> — P@10 = 0.3369
+  42913 Social and Information Network Analysis · Group 4 · Topic 2: GraphRAG and Context Retrieval ·
+  Wikipedia Vote Network (SNAP) · Best: Personalised PageRank P@10 = 0.3369
 </footer>
 
-<!-- ═══════════════════════════════════════ CHART -->
 <script>
-  const ctx = document.getElementById("resultsChart").getContext("2d");
-
-  const methods  = ["Pers. PageRank","Common Neighbors","Adamic/Adar","Jaccard","Random"];
-  const scores   = [0.3369, 0.3029, 0.3027, 0.2941, 0.091];
-  const errors   = [0.2389, 0.2328, 0.2320, 0.2320, 0];
-  const colors   = ["#16a34a","#2563eb","#2563eb","#d97706","#cbd5e1"];
-  const borders  = ["#15803d","#1d4ed8","#1d4ed8","#b45309","#94a3b8"];
-
-  new Chart(ctx, {
-    type: "bar",
-    data: {
-      labels: methods,
-      datasets: [{
-        label: "Mean Precision@10",
-        data: scores,
-        backgroundColor: colors,
-        borderColor: borders,
-        borderWidth: 1.5,
-        borderRadius: 5,
-        errorBars: errors,
-      }]
-    },
-    options: {
-      responsive: true,
-      plugins: {
-        legend: { display: false },
-        tooltip: {
-          callbacks: {
-            label: (ctx) => {
-              const i = ctx.dataIndex;
-              const s = scores[i];
-              const e = errors[i];
-              return e > 0
-                ? ` P@10 = ${s.toFixed(4)}  ±${e.toFixed(4)}`
-                : ` Random baseline ≈ ${s.toFixed(3)}`;
-            }
+const ctx = document.getElementById("resultsChart").getContext("2d");
+new Chart(ctx, {
+  type: "bar",
+  data: {
+    labels: ["Pers. PageRank","Common Neigh.","Adamic/Adar","Jaccard","Random"],
+    datasets:[{
+      label: "Mean Precision@10",
+      data: [0.3369, 0.3029, 0.3027, 0.2941, 0.091],
+      backgroundColor: ["#16a34a","#2563eb","#7c3aed","#d97706","#cbd5e1"],
+      borderColor:     ["#15803d","#1d4ed8","#6d28d9","#b45309","#94a3b8"],
+      borderWidth: 1.5,
+      borderRadius: 5,
+    }]
+  },
+  options: {
+    responsive: true,
+    plugins: {
+      legend: { display: false },
+      tooltip: {
+        callbacks: {
+          label: (c) => {
+            const vals = [0.3369,0.3029,0.3027,0.2941,0.091];
+            const vs   = [3.7,3.3,3.3,3.2,1.0];
+            return ` P@10 = ${vals[c.dataIndex].toFixed(4)}  (${vs[c.dataIndex]}× random)`;
           }
         }
-      },
-      scales: {
-        y: {
-          beginAtZero: true,
-          max: 0.42,
-          title: { display: true, text: "Mean Precision@10", font: { size: 11 } },
-          ticks: { callback: v => v.toFixed(2) },
-          grid: { color: "#f1f5f9" }
-        },
-        x: { grid: { display: false }, ticks: { font: { size: 11 } } }
       }
+    },
+    scales: {
+      y: { beginAtZero:true, max:0.42,
+           title:{display:true,text:"Mean Precision@10",font:{size:11}},
+           ticks:{callback:v=>v.toFixed(2)}, grid:{color:"#f1f5f9"} },
+      x: { grid:{display:false}, ticks:{font:{size:10}} }
     }
-  });
+  }
+});
 </script>
 </body>
 </html>

@@ -22,3 +22,16 @@ results/metrics/*.csv
 
 # Keep generated report figures if you want them in the repo
 !reports/figures/*.png
+
+# LaTeX build artifacts
+*.aux
+*.out
+*.toc
+*.synctex.gz
+*.fls
+*.fdb_latexmk
+texput.log
+report_clean.*
+report_v2.*
+report_v3.*
+report_final.*
