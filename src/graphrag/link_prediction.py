@@ -4,6 +4,7 @@ import math
 import time
 
 import networkx as nx
+import numpy as np
 import pandas as pd
 
 
@@ -12,6 +13,7 @@ SUPPORTED_METHODS = (
     "jaccard",
     "adamic_adar",
     "personalized_pagerank",
+    "katz",
 )
 
 
@@ -100,6 +102,48 @@ def _compute_personalized_pagerank(
     return scores_by_source
 
 
+def katz_score(
+    graph: nx.Graph,
+    source: int | str,
+    target: int | str,
+    beta: float = 0.05,
+    max_path: int = 3,
+) -> float:
+    """
+    Katz index between source and target.
+
+    Sums contribution of all walks of length 1..max_path, each decayed by
+    beta^length. Uses repeated sparse matrix-vector multiplication so it stays
+    tractable for large graphs (only one source vector needed per source node).
+
+    beta controls how fast longer paths are discounted.  beta=0.05 means a
+    length-2 path contributes 0.05^2 = 0.0025 times a length-1 path.
+    """
+    if source not in graph or target not in graph:
+        return 0.0
+
+    nodes = list(graph.nodes())
+    idx = {n: i for i, n in enumerate(nodes)}
+
+    A = nx.to_numpy_array(graph, nodelist=nodes, weight=None).astype(float)
+    row_sums = A.sum(axis=1, keepdims=True)
+    row_sums[row_sums == 0] = 1.0
+    A = A / row_sums
+
+    vec = np.zeros(len(nodes))
+    vec[idx[source]] = 1.0
+
+    score = 0.0
+    current = vec.copy()
+    for _ in range(max_path):
+        current = beta * (A.T @ current)
+        t_idx = idx.get(target)
+        if t_idx is not None:
+            score += current[t_idx]
+
+    return float(score)
+
+
 def score_candidates(
     directed_graph: nx.DiGraph,
     undirected_graph: nx.Graph,
@@ -156,6 +200,14 @@ def score_candidates(
             for source, target in pairs
         ]
         log("Finished personalized_pagerank.")
+
+    if "katz" in methods:
+        log("Scoring candidates with katz...")
+        scored["katz"] = [
+            katz_score(undirected_graph, source, target)
+            for source, target in pairs
+        ]
+        log("Finished katz.")
 
     return scored
 
