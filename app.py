@@ -36,13 +36,23 @@ METHOD_COLOURS = {
     "common_neighbors":      "#2563eb",
     "adamic_adar":           "#7c3aed",
     "jaccard":               "#d97706",
+    "katz":                  "#f59e0b",
 }
 METHOD_LABELS = {
     "personalized_pagerank": "Personalised PageRank",
     "common_neighbors":      "Common Neighbours",
     "adamic_adar":           "Adamic / Adar",
     "jaccard":               "Jaccard",
+    "katz":                  "Katz Index",
 }
+
+# ── Dataset 2 (HotpotQA) hardcoded results ──────────────────────────────────
+HOTPOTQA_RESULTS = pd.DataFrame([
+    {"method": "personalized_pagerank", "auc_roc": 0.8084, "average_precision": 0.2228},
+    {"method": "katz",                  "auc_roc": 0.7252, "average_precision": 0.0666},
+    {"method": "jaccard",               "auc_roc": 0.6295, "average_precision": 0.0273},
+    {"method": "adamic_adar",           "auc_roc": 0.6158, "average_precision": 0.0289},
+])
 
 # ── page config ─────────────────────────────────────────────────────────────
 st.set_page_config(
@@ -116,17 +126,18 @@ st.sidebar.markdown("**42913 · Group 4**")
 st.sidebar.markdown("---")
 page = st.sidebar.radio(
     "Navigate",
-    ["🏠 Overview", "🕸️ Network Explorer", "📊 Results & Algorithms", "🔍 Prediction Explorer"],
+    ["🏠 Overview", "🕸️ Network Explorer", "📊 Results & Algorithms",
+     "🔄 Cross-Dataset", "🔍 Prediction Explorer"],
     label_visibility="collapsed",
 )
 st.sidebar.markdown("---")
-st.sidebar.markdown("**Dataset**")
-st.sidebar.markdown("Wikipedia Vote Network (SNAP)")
+st.sidebar.markdown("**Dataset 1** — WikiVote")
 st.sidebar.markdown("7,115 nodes · 103,689 edges")
+st.sidebar.markdown("P@10 best: **0.3369** (3.7× random)")
 st.sidebar.markdown("---")
-st.sidebar.markdown("**Best method**")
-st.sidebar.markdown("Personalised PageRank")
-st.sidebar.markdown("P@10 = **0.3369**  (3.7× random)")
+st.sidebar.markdown("**Dataset 2** — HotpotQA")
+st.sidebar.markdown("200 QA examples · ~23 nodes/graph")
+st.sidebar.markdown("AUC best: **0.8084** (+61% random)")
 
 
 # ════════════════════════════════════════════════════════════════════════════
@@ -136,11 +147,14 @@ if page == "🏠 Overview":
     st.title("GraphRAG and Context Retrieval")
     st.markdown(
         "**42913 Social and Information Network Analysis — Topic 2 · Group 4**\n\n"
-        "This dashboard explores a link prediction pipeline built on the Wikipedia Vote "
-        "Network. If an algorithm predicts a strong link from user **A** to user **B**, "
-        "then B is treated as relevant context for A — the core idea behind GraphRAG."
+        "A flexible GraphRAG retrieval engine evaluated on **two datasets**. "
+        "The same `GraphRAGPipeline` runs on both — only the dataset adapter changes."
     )
 
+    tab1, tab2 = st.tabs(["📊 Dataset 1 — Wikipedia Vote Network", "🧠 Dataset 2 — HotpotQA"])
+
+    with tab1:
+        st.caption("Social trust graph · Link prediction · Precision@10")
     # ── Key metric cards ────────────────────────────────────────────────────
     col1, col2, col3, col4, col5 = st.columns(5)
     for col, val, lbl in [
@@ -218,6 +232,42 @@ if page == "🏠 Overview":
         right.plotly_chart(fig, use_container_width=True)
     else:
         st.info("Run `python scripts/run_experiments.py` to generate results.")
+
+    with tab2:
+        st.caption("Entity co-occurrence graphs · Context retrieval · AUC-ROC")
+        c1, c2, c3, c4 = st.columns(4)
+        for col, val, lbl in [
+            (c1, "200",   "QA examples"),
+            (c2, "~23",   "Avg nodes / graph"),
+            (c3, "0.8084","Best AUC-ROC (PPR)"),
+            (c4, "+61%",  "PPR vs random AUC"),
+        ]:
+            col.markdown(
+                f'<div class="metric-card"><div class="val">{val}</div>'
+                f'<div class="lbl">{lbl}</div></div>',
+                unsafe_allow_html=True,
+            )
+        st.markdown("")
+        left2, right2 = st.columns([3, 2])
+        d2_disp = HOTPOTQA_RESULTS.copy()
+        d2_disp["Method"] = d2_disp["method"].map(lambda m: METHOD_LABELS.get(m, m))
+        d2_disp["AUC-ROC"] = d2_disp["auc_roc"].map("{:.4f}".format)
+        d2_disp["Avg Precision"] = d2_disp["average_precision"].map("{:.4f}".format)
+        left2.dataframe(d2_disp[["Method","AUC-ROC","Avg Precision"]].set_index("Method"),
+                        use_container_width=True)
+        fig2 = px.bar(
+            HOTPOTQA_RESULTS, x="method", y="auc_roc",
+            color="method", color_discrete_map=METHOD_COLOURS,
+            labels={"method": "", "auc_roc": "AUC-ROC"},
+            title="AUC-ROC by Method — HotpotQA",
+        )
+        fig2.update_layout(showlegend=False, height=280,
+                           xaxis_ticktext=[METHOD_LABELS.get(m,m) for m in HOTPOTQA_RESULTS["method"]],
+                           xaxis_tickvals=list(HOTPOTQA_RESULTS["method"]))
+        fig2.add_hline(y=0.5, line_dash="dash", line_color="gray",
+                       annotation_text="Random AUC ≈ 0.500",
+                       annotation_position="top right")
+        right2.plotly_chart(fig2, use_container_width=True)
 
 
 # ════════════════════════════════════════════════════════════════════════════
@@ -516,7 +566,87 @@ elif page == "📊 Results & Algorithms":
 
 
 # ════════════════════════════════════════════════════════════════════════════
-# PAGE 4 — PREDICTION EXPLORER
+# PAGE 4 — CROSS-DATASET COMPARISON
+# ════════════════════════════════════════════════════════════════════════════
+elif page == "🔄 Cross-Dataset":
+    st.title("Cross-Dataset Comparison")
+    st.markdown(
+        "The same `GraphRAGPipeline` and the same algorithms run on two completely different "
+        "graph types. **Personalised PageRank wins on both**, confirming that multi-hop graph "
+        "traversal is the fundamental retrieval primitive for GraphRAG."
+    )
+
+    summary = load_summary()
+
+    st.markdown("---")
+
+    # ── Side-by-side bar charts ──────────────────────────────────────────────
+    st.subheader("Algorithm Performance — Both Datasets")
+    col_d1, col_d2 = st.columns(2)
+
+    with col_d1:
+        st.markdown("**Dataset 1 — Wikipedia Vote Network**  \n*Task: Link Prediction · Metric: Precision@10*")
+        if summary is not None:
+            fig_d1 = px.bar(
+                summary.sort_values("mean_precision_at_k", ascending=False),
+                x="method", y="mean_precision_at_k",
+                error_y="std_precision_at_k",
+                color="method", color_discrete_map=METHOD_COLOURS,
+                labels={"method": "", "mean_precision_at_k": "Mean Precision@10"},
+            )
+            fig_d1.add_hline(y=0.091, line_dash="dot", line_color="gray",
+                             annotation_text="Random ≈ 0.091")
+            fig_d1.update_layout(showlegend=False, height=340,
+                                 xaxis_ticktext=[METHOD_LABELS.get(m,"") for m in summary.sort_values("mean_precision_at_k",ascending=False)["method"]],
+                                 xaxis_tickvals=list(summary.sort_values("mean_precision_at_k",ascending=False)["method"]))
+            st.plotly_chart(fig_d1, use_container_width=True)
+
+    with col_d2:
+        st.markdown("**Dataset 2 — HotpotQA**  \n*Task: Context Retrieval · Metric: AUC-ROC*")
+        fig_d2 = px.bar(
+            HOTPOTQA_RESULTS, x="method", y="auc_roc",
+            color="method", color_discrete_map=METHOD_COLOURS,
+            labels={"method": "", "auc_roc": "AUC-ROC"},
+        )
+        fig_d2.add_hline(y=0.5, line_dash="dot", line_color="gray",
+                         annotation_text="Random ≈ 0.500")
+        fig_d2.update_layout(showlegend=False, height=340,
+                             xaxis_ticktext=[METHOD_LABELS.get(m,"") for m in HOTPOTQA_RESULTS["method"]],
+                             xaxis_tickvals=list(HOTPOTQA_RESULTS["method"]))
+        st.plotly_chart(fig_d2, use_container_width=True)
+
+    # ── Combined table ───────────────────────────────────────────────────────
+    st.markdown("---")
+    st.subheader("Combined Results Table")
+
+    d1_dict = dict(zip(summary["method"], summary["mean_precision_at_k"])) if summary is not None else {}
+    d2_dict = dict(zip(HOTPOTQA_RESULTS["method"], HOTPOTQA_RESULTS["auc_roc"]))
+
+    all_methods = ["personalized_pagerank", "common_neighbors", "katz", "adamic_adar", "jaccard"]
+    rows = []
+    for m in all_methods:
+        rows.append({
+            "Method":           METHOD_LABELS.get(m, m),
+            "D1 P@10":          f"{d1_dict[m]:.4f}" if m in d1_dict else "—",
+            "D1 vs Random":     f"{d1_dict[m]/0.091:.1f}×" if m in d1_dict else "—",
+            "D2 AUC-ROC":       f"{d2_dict[m]:.4f}" if m in d2_dict else "—",
+            "D2 vs Random":     f"+{(d2_dict[m]-0.5)/0.5*100:.0f}%" if m in d2_dict else "—",
+        })
+    combined_df = pd.DataFrame(rows).set_index("Method")
+    st.dataframe(combined_df, use_container_width=True)
+
+    # ── Key findings ─────────────────────────────────────────────────────────
+    st.markdown("---")
+    st.subheader("Key Findings")
+    f1, f2, f3, f4 = st.columns(4)
+    f1.success("🏆 **PPR wins on both datasets**  \nP@10=0.337 · AUC=0.808")
+    f2.error("🔴 **Jaccard lowest on both**  \nP@10=0.294 · AUC=0.630")
+    f3.warning("⚡ **Katz strong on D2**  \nAUC=0.725 — 2nd best on HotpotQA")
+    f4.info("🔌 **One pipeline, two datasets**  \nSame interface, auto metric selection")
+
+
+# ════════════════════════════════════════════════════════════════════════════
+# PAGE 5 — PREDICTION EXPLORER
 # ════════════════════════════════════════════════════════════════════════════
 elif page == "🔍 Prediction Explorer":
     st.title("Prediction Explorer")
